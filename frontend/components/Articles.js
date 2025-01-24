@@ -1,8 +1,8 @@
-import React, { useEffect } from 'react'
-import { Navigate } from 'react-router-dom'
-import PT from 'prop-types'
+import React, { useEffect } from 'react';
+import { Navigate } from 'react-router-dom';
+import PT from 'prop-types';
 
-export default function Articles({ articles, getArticles, setCurrentArticleId, deleteArticle }) {
+export default function Articles({ articles, getArticles, setCurrentArticleId, deleteArticle, currentArticleId }) {
   // ✨ where are my props? Destructure them here
 
   // ✨ implement conditional logic: if no token exists
@@ -10,43 +10,44 @@ export default function Articles({ articles, getArticles, setCurrentArticleId, d
   const token = localStorage.getItem('token');
 
   if (!token) {
-    return <Navigate to="/" />
+    return <Navigate to="/" replace />
   }
 
   useEffect(() => {
     // ✨ grab the articles here, on first render only
   getArticles()
-  }, [])
+  }, [getArticles]);
+
+  const validArticles = Array.isArray(articles) ? articles : [];
 
   return (
     // ✨ fix the JSX: replace `Function.prototype` with actual functions
     // and use the articles prop to generate articles
     <div className="articles">
       <h2>Articles</h2>
-      {
-        !articles.length
-          ? 'No articles yet'
-          : articles.map(art => {
-
-          
-            return (
+      {validArticles.length === 0 ? (
+        <p>No articles yet</p>
+      ) : (
+        validArticles.map((art) => (
               <div className="article" key={art.article_id}>
                 <div>
                   <h3>{art.title}</h3>
                   <p>{art.text}</p>
                   <p>Topic: {art.topic}</p>
                 </div>
-                <div>
-                  <button disabled={false} onClick={() => setCurrentArticleId(art.article_id)}>Edit</button>
-                  <button disabled={false} onClick={() => deleteArticle(art.article_id)}>Delete</button>
+                <div className="button-group">
+                  <button 
+                  disabled={currentArticleId === art.article_id} onClick={() => setCurrentArticleId(art.article_id)}>Edit</button>
+                  <button 
+                  onClick={() => {deleteArticle(art.article_id)}}>Delete</button>
                 </div>
               </div>
-            )
-          })
-      }
+            ))
+          )}
     </div>
-  )
-}
+  );
+  }
+
 
 // 🔥 No touchy: Articles expects the following props exactly:
 Articles.propTypes = {

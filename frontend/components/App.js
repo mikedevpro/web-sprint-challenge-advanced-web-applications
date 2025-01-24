@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import { NavLink, Routes, Route, useNavigate } from 'react-router-dom'
 import Articles from './Articles'
 import LoginForm from './LoginForm'
@@ -7,8 +7,8 @@ import ArticleForm from './ArticleForm'
 import Spinner from './Spinner'
 import axios from 'axios'
 
-const articlesUrl = 'http://localhost:9000/api/articles'
-const loginUrl = 'http://localhost:9000/api/login'
+const articlesUrl = 'http://localhost:9000/api/articles';
+const loginUrl = 'http://localhost:9000/api/login';
 
 export default function App() {
   // ✨ MVP can be achieved with these states
@@ -18,7 +18,7 @@ export default function App() {
   const [spinnerOn, setSpinnerOn] = useState(false)
 
   // ✨ Research `useNavigate` in React Router v.6
-  const navigate = useNavigate()
+  const navigate = useNavigate();
   const redirectToLogin = () => { navigate('/') }
   const redirectToArticles = () => { navigate('/articles') }
 
@@ -28,10 +28,10 @@ export default function App() {
     // and a message saying "Goodbye!" should be set in its proper state.
     // In any case, we should redirect the browser back to the login screen,
     // using the helper above.
-    localStorage.removeItem('token')
-    setMessage("Goodbye!")
-    redirectToLogin()
-  }
+    localStorage.removeItem('token');
+    setMessage("Goodbye!");
+    redirectToLogin();
+  };
 
   const login = async ({ username, password }) => {
     // ✨ implement
@@ -40,42 +40,55 @@ export default function App() {
     // On success, we should set the token to local storage in a 'token' key,
     // put the server success message in its proper state, and redirect
     // to the Articles screen. Don't forget to turn off the spinner!
-    const logIn = async () => {
+    
+      setMessage('');
+      setSpinnerOn(true);
       try {
-        const response = await axios.post(
-          loginUrl,
-          {
-            username,
-            password
-          },
-          {
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          }
-        );
-        if (response.status !== 200) {
-          throw new Error('Network response was not good');
-        } else {
-          setMessage(`Here are your articles, ${username}!`)
-          const data = response.data;
+        const response = await fetch(loginUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+        });
+        const data = await response.json();
+
+        if (response.ok) {
           localStorage.setItem('token', data.token);
+          setMessage(data.message);
           redirectToArticles();
+        } else {
+          setMessage(data.message || 'Login failed');
         }
       } catch (error) {
-        if (error?.response?.status === 401) {
-          logout();
-        } else {
-          console.log('An error occured:', error);
-        }
+        setMessage('An error occurred during login');
       } finally {
         setSpinnerOn(false);
       }
     };
-    logIn();
-  }
+    
+    const authenticatedFetch = async (url, options = {}) => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        redirectToLogin();
+        throw new Error('Unauthorized');
+      }
 
-  const getArticles = () => {
+      const headers = {
+        ...options.headers,
+        Authorization: `${token}`,
+      };
+
+      const response = await fetch(url, { ...options, headers });
+      if (!response.ok) {
+        if(response.status === 401) {
+          redirectToLogin();
+          throw new Error('Token expired or invalid');
+        }
+        throw new Error(`HTTP Error: ${response.status} - ${response.statusText}`);
+      }
+      return response;
+    };
+
+  const getArticles = useCallback(async () => {
     // ✨ implement
     // We should flush the message state, turn on the spinner
     // and launch an authenticated request to the proper endpoint.
@@ -84,149 +97,98 @@ export default function App() {
     // If something goes wrong, check the status of the response:
     // if it's a 401 the token might have gone bad, and we should redirect to login.
     // Don't forget to turn off the spinner!
-    setSpinnerOn(true)
-    const token = localStorage.getItem('token')
-    if(!token) {
-      logout()
-    } else {
-      setSpinnerOn(true)
-      const fetchArticle = async () => {
-        try {
-          const response = await axios.get(
-            articlesUrl,
-            { headers: { Authorization: token } }
-          )
-          setArticles(response.data.articles)
-        } catch (error) {
-          if(error?.response?.status == 401) {
-            logout()
-          }
-        } finally {
-          setSpinnerOn(false)
-        }
-      }
-      fetchArticle()
-      setSpinnerOn(false)
+    setMessage('');
+    setSpinnerOn(true);
+    
+    try {
+      const response = await authenticatedFetch(articlesUrl, {
+        method: 'GET'
+      });
+      const data = await response.json();
+      setArticles(data.articles || []);
+      setMessage(data.message);
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setSpinnerOn(false);
     }
-  };
+  }, []);
+      
+    
 
   const postArticle = async (article) => {
     // ✨ implement
     // The flow is very similar to the `getArticles` function.
     // You'll know what to do! Use log statements or breakpoints
     // to inspect the response from the server.
-    setSpinnerOn(true)
-    const token = localStorage.getItem('token')
-    if(!token) {
-      logout()
-    } else {
-      const fetchArticle = async () => {
-        try {
-          const response = await axios.post(
-            articlesUrl,
-            {
-              title: article.title,
-              text: article.text,
-              topic: article.topic
-            },
-            {
-              headers: {
-                Authorization: token,
-                'Content-Type': 'application/json'
-              }
-            }
-          );
-          setMessage(response.data.message);
-          if (response.status !== 200) {
-            throw new Error('Post network is not good');
-          }
-        } catch (error) {
-          if (error?.response?.status === 401) {
-            logout();
-          } else {
-            console.log('An error occurred:', error);
-          }
-        } finally {
-          getArticles();
-          setSpinnerOn(false);
-        }
-      };
-      fetchArticle();
-    }
-  }
+    setSpinnerOn(true);
+    setMessage('');
+    try {
+      const response = await authenticatedFetch(articlesUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'applicaton/json' },
+        body: JSON.stringify(article),
+      });
+      const data = await response.json();
 
-  const updateArticle = ( article_id, article ) => {
+      if (response.ok) {
+        await getArticles();
+        setMessage(data.message);
+      } else {
+        setMessage(data.message || 'Failed to post article');
+      }
+    } catch (error) {
+      setMessage('An error occurred while posting the article');
+    } finally {
+      setSpinnerOn(false);
+    }
+  };
+   
+
+  const updateArticle = async ({ article_id, article }) => {
     // ✨ implement
-    setSpinnerOn(true)
-    const token = localStorage.getItem('token')
-    if(!token) {
-      logout()
-      spinnerOn(false)
-    } else {
-        const fetchArticle = async () => {
-          try {
-            const response = await axios.put(
-              `${articlesUrl}/${article_id}`,
-              {
-                title: article.title,
-                text: article.text,
-                topic: article.topic
-              },
-              { headers: { 
-                Authorization: token,
-                'Content-Type': 'application/json'
-              }}
-            )
-            getArticles()
-            setMessage(response.data.message)
-            if(!response.ok) {
-              throw new Error('Update network is not good')
-            }
-          } catch (error) {
-            if(error?.response?.status == 401) {
-              logout()
-            }
-          } finally {
-            setSpinnerOn(false)
-          }
-        }
-        fetchArticle()
-    }
-  }
+    setSpinnerOn(true);
+    setMessage('');
+    try {
+            const response = await authenticatedFetch(`${articlesUrl}/${article_id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(article),
+            });
+            const data = await response.json();
 
-  const deleteArticle = article_id => {
+            await getArticles();
+
+            setMessage(data.message || 'Article updated successfully');
+          } finally {
+            setSpinnerOn(false);
+          }
+        };
+
+  const deleteArticle = async (article_id) => {
     // ✨ implement
-    const token = localStorage.getItem('token')
+    setMessage('');
+    setSpinnerOn(true);
+    try {
+      const response = await authenticatedFetch(`${articlesUrl}/${article_id}`, {
+        method: 'DELETE',
+      });
+      const data = await response.json();
 
-    if(!token) {
-      logout()
-    } else {
-      setSpinnerOn(true)
-        const fetchArticle = async () => {
-          try {
-            const response = await axios.delete(
-              `${articlesUrl}/${article_id}`,
-              { headers: {
-                Authorization: token,
-                'Content-Type': 'application/json'
-              }}
-            )
-            setMessage(response.data.message)
-            if(!response.ok) {
-              throw new Error('Update network is not good')
-            }
-          } catch (error) {
-            if(error?.response?.status == 401) {
-              logout()
-            }
-          } finally {
-            setSpinnerOn(false)
-          }
-        }
-        fetchArticle()
-        getArticles()
+      if (response.ok) {
+        setArticles((prev) => prev.filter((a) => a.article_id !== article_id));
+        setMessage(data.message);
+      }
+    } catch (error) {
+      setMessage('error');
+    } finally {
+      setSpinnerOn(false);
     }
-  }
+  };
+
+  const currentArticle = articles.find(
+    (article) => article.article_id === currentArticleId
+  );
 
   return (
     // ✨ fix the JSX: `Spinner`, `Message`, `LoginForm`, `ArticleForm` and `Articles` expect props ❗
@@ -248,13 +210,16 @@ export default function App() {
                 postArticle={postArticle}
                 updateArticle={updateArticle}
                 setCurrentArticleId={setCurrentArticleId}
-                currentArticle={articles.find(art => art.article_id === currentArticleId)}
+                currentArticleId={currentArticleId}
+                articles={articles}
+                currentArticle={currentArticle}
               />
               <Articles 
                 getArticles={getArticles}
                 articles={articles}
                 setCurrentArticleId={setCurrentArticleId}
                 deleteArticle={deleteArticle}
+                currentArticleId={currentArticleId}
               />
             </>
           } />
@@ -262,5 +227,5 @@ export default function App() {
         <footer>Bloom Institute of Technology 2024</footer>
       </div>
     </>
-  )
+  );
 }

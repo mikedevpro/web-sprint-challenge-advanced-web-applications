@@ -1,38 +1,44 @@
 import React, { useState } from 'react'
 import PT from 'prop-types'
+import { useNavigate } from 'react-router-dom'
 
 const initialFormValues = {
   username: '',
   password: '',
 }
-export default function LoginForm({ login }) {
+export default function LoginForm( props ) {
   const [values, setValues] = useState(initialFormValues)
   // ✨ where are my props? Destructure them here
+  const navigate = useNavigate()
+  const { login } = props;
 
   const onChange = evt => {
     const { id, value } = evt.target
     setValues({ ...values, [id]: value })
   }
 
-  const onSubmit = evt => {
-    evt.preventDefault()
+  const onSubmit = async evt => {
+    evt.preventDefault();
     // ✨ implement
-    login(values.username, values.password)
-    setValues(initialFormValues)
-  }
+    const success = await login({
+      username: values.username,
+      password: values.password,
+    });
+
+    if (success) {
+      navigate('/articles');
+    }
+  };
 
   const isDisabled = () => {
     // ✨ implement
     // Trimmed username must be >= 3, and
     // trimmed password must be >= 8 for
     // the button to become enabled
-    if (values.username.replace(/\s/g, "") != null && values.password.replace(/\s/g, "") != null) {
-      if (values.username.replace(/\s/g, "").length >= 3 && values.password.replace(/\s/g, "").length >= 8) {
-        return false
-      }
-    }
-    return true
-  }
+    const trimmedUsername = values.username.trim();
+    const trimmedPassword = values.password.trim();
+    return trimmedUsername.length < 3 || trimmedPassword.length < 8;
+  };
 
   return (
     <form id="loginForm" onSubmit={onSubmit}>

@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react'
 import PT from 'prop-types'
 
-const initialFormValues = { title: '', text: '', topic: '' }
+// const initialFormValues = { title: '', text: '', topic: '' }
 
 export default function ArticleForm({ postArticle, updateArticle, setCurrentArticleId, currentArticle }) {
-  const [values, setValues] = useState(initialFormValues)
+  
+  const [values, setValues] = useState({ title: '', text: '', topic: '' });
   // ✨ where are my props? Destructure them here
 
   useEffect(() => {
@@ -14,19 +15,19 @@ export default function ArticleForm({ postArticle, updateArticle, setCurrentArti
     // values of the form. If it's not, we should reset the form back to initial values.
     if(currentArticle) {
       setValues({
-        title: currentArticle.title,
-        text: currentArticle.text,
-        topic: currentArticle.topic
-      })
+        title: currentArticle.title || '',
+        text: currentArticle.text || '',
+        topic: currentArticle.topic || '',
+      });
     } else {
-      setValues(initialFormValues)
+      setValues({ title: '', text: '', topic: '' });
     }
-  }, [currentArticle])
+  }, [currentArticle]);
 
   const onChange = evt => {
     const { id, value } = evt.target
-    setValues({ ...values, [id]: value })
-  }
+    setValues({ ...values, [id]: value });
+  };
 
   const onSubmit = evt => {
     evt.preventDefault()
@@ -38,17 +39,17 @@ export default function ArticleForm({ postArticle, updateArticle, setCurrentArti
     } else {
       postArticle(values)
     }
-    setCurrentArticleId(null)
-    setValues(initialFormValues)
-  }
+    setValues({ title: '', text: '', topic: '' });
+    setCurrentArticleId(null);
+  };
 
   const isDisabled = () => {
     // ✨ implement
     // Make sure the inputs have some values
     return !(
-      values.title.replace(/\s/g, "").length >= 1 &&
-      values.text.replace(/\s/g, "").length >=1 &&
-      ['JavaScript', 'React', 'Node'].includes(values.topic)
+      !values.title.trim() ||
+      !values.text.trim() ||
+      !['JavaScript', 'React', 'Node'].includes(values.topic)
     );
   }
 
@@ -56,7 +57,7 @@ export default function ArticleForm({ postArticle, updateArticle, setCurrentArti
     // ✨ fix the JSX: make the heading display either "Edit" or "Create"
     // and replace Function.prototype with the correct function
     <form id="form" onSubmit={onSubmit}>
-      <h2>Create Article</h2>
+      <h2>{currentArticle ? 'Edit Article' : 'Create Article' }</h2>
       <input
         maxLength={50}
         onChange={onChange}
@@ -71,32 +72,27 @@ export default function ArticleForm({ postArticle, updateArticle, setCurrentArti
         placeholder="Enter text"
         id="text"
       />
-      <select onChange={onChange} id="topic" value={values.topic}>
+      <select 
+        onChange={onChange} 
+        id="topic" 
+        value={values.topic}>
+
         <option value="">-- Select topic --</option>
         <option value="JavaScript">JavaScript</option>
         <option value="React">React</option>
         <option value="Node">Node</option>
       </select>
       <div className="button-group">
-        {
-          currentArticle
-          ? (
-            <>
-              <button disabled={isDisabled()}
-              id="submitArticle">Submit</button>
-              <button disabled={isDisabled()} 
-              onClick={() => setCurrentArticleId(null)}
-              id="cancelEdit">Cancel</button>
-            </>
-          )
-          : (
-            <button disabled={isDisabled()}
-            id="submitArticle">Submit</button>
-          )
-        }
+        <button disabled={isDisabled()}
+        id="submitArticle">Submit</button>
+        {currentArticle && (
+        <button disabled={isDisabled()} 
+        onClick={() => setCurrentArticleId(null)}
+        id="cancelEdit">Cancel Edit</button>
+        )}
       </div>
     </form>
-  )
+  );
 }
 
 // 🔥 No touchy: ArticleForm expects the following props exactly:

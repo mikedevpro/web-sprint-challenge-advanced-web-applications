@@ -14,7 +14,7 @@ const StyledMessage = styled.div`
 export default function Message({ message }) {
   return (
     <StyledMessage key={message} id="message">
-      {message}
+      {message && <p>{message}</p>}
     </StyledMessage>
   )
 }
