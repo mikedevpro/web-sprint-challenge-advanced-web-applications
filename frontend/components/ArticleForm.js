@@ -84,12 +84,12 @@ export default function ArticleForm({ postArticle, updateArticle, setCurrentArti
       </select>
       <div className="button-group">
         <button 
-        disabled={isDisabled}
+        disabled={!isDisabled()}
         id="submitArticle">
         Submit</button>
         {currentArticle && (
         <button 
-        disabled={isDisabled} 
+        disabled={isDisabled()} 
         onClick={() => setCurrentArticleId(null)}
         id="cancelEdit">Cancel Edit</button>
         )}
